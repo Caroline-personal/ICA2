@@ -23,9 +23,10 @@ def get_protein_content():  #Define a function
     esearch_var = f"esearch -db protein -query '{protein_name}[PROTEIN]' 2>error.txt | efilter -query txid'{Taxon_ID}'[ORGANISM] 2>error.txt | efetch -format fasta 2>error.txt > ~/ICA2/protein_data_output/{protein_name_file}_{Taxon_ID}.fasta"
     os.system(esearch_var) # os.system commamd is used to run the variable esearch_var
     print("protein sequences successfully downloaded")
-    return protein_name, Taxon_ID, output_file
+    return protein_name, Taxon_ID, output_file, protein_name_file
 
-protein_name, Taxon_ID, output_file = get_protein_content()  #calling out the function get_protein_content
+protein_name, Taxon_ID, output_file, protein_name_file = get_protein_content()  #calling out the function get_protein_content and assigning the function to three variables protein_name, Taxon_ID and output_file.
+#print a statement to let the user know the name, taxon id and the location of the chosen protein of interest.
 print("The protein of interest is" , protein_name, "with taxon id" , Taxon_ID, "located in" , output_file)
 
 
@@ -36,18 +37,18 @@ with open("error.txt", "r") as file:   #Create a with loop to read the entire fi
     except :
         print("The protein is valid")
 
-os.chdir(os.environ['HOME']) 
-path = os.environ['HOME']
+os.chdir(os.environ['HOME']) #change directory to the homespace
+path = os.environ['HOME'] 
 path1 = (path + "/ICA2/protein_data_output")
 os.chdir = (path1)
 os.listdir()
-my_fasta_file = open(output_file)
-protein_id = []
-protein_name = []
-species = []
-protein_sequence = []
+my_fasta_file = open(output_file) #open a connection (output_file) and assign it to a variable called my_fasta_file which refers to the file that contains the protein information  
+protein_id = [] #Make an empty list and assign it to a variable called  protein_id
+protein_name = [] #Make an empty list and assign it to a variable called protein_name
+species = [] #Make an empty list and assign it to a variable called species
+protein_sequence = [] #Make an empty list and assign it to a variable called protein_sequence
 
-for eachline in my_fasta_file :
+for eachline in my_fasta_file : 
     if eachline.startswith(">") :
         protein_id_search = eachline.split()[0]
         print(protein_id_search)
@@ -73,3 +74,27 @@ s3 = pd.Series(species_search)
 s4 = pd.Series(protein_sequence_search,dtype=pd.StringDtype())
 df = pd.DataFrame ( { 'protein_id' : s1, 'protein_name' : s2, 'species' : s3, 'protein_sequence' : s4 } )
 print(df)
+
+#Running Clustalo 
+path = os.environ['HOME'] #The homespace is stored into a variable called path
+
+my_fasta_file_original = path + f"/ICA2/protein_data_output/{protein_name_file}_{Taxon_ID}.fasta" #The path variable and the string is assigned to a variable my_fasta_file_original, which contains the fasta file {protein_name_file}_{Taxon_ID}.fasta
+my_fasta_file_aligned = path + f"/ICA2/protein_data_output_aligned" #The paih variable and the string 
+clustalo_cmd = f'clustalo -i {my_fasta_file_original} -o {my_fasta_file_aligned} -v --outfmt msf --force'
+os.system(clustalo_cmd)
+
+#Running Plotcon
+my_fasta_file_aligned = path + f"/ICA2/protein_data_output_aligned" 
+plotcon_cmd = f'plotcon -sformat -msf {my_fasta_file_aligned} -winsize 4 -graph x11' 
+
+def plotcon_user_input(question= 'Do you want to view the plot now using plotcon?'):
+    while "The answer to view the plot is invalid" :
+        plotcon_reply = str(input(question+ '[y/n]:')).lower().strip()
+        if plotcon_reply[:1] == 'y':
+            os.system(plotcon_cmd)
+            print("plotcon is currently running, please wait")
+            return True
+        if plotcon_reply[:1] == 'n':
+            print("Exiting plotcon.....")
+            return False
+plotcon_user_input(question= 'Do you want to view the plot now using plotcon')
