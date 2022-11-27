@@ -20,9 +20,8 @@ def get_protein_content():  #Define a function
     output_file =path_1+ f'/ICA2/protein_data_output/{protein_name_file}_{Taxon_ID}.fasta'
 #esearch is used to pull up the protein data  using the variables protein_name and Taxon_ID, and output the protein data into a fasta file, this is assigned to a variable called esearch_var 
 #If any error is found,  2>error.txt is used to redirect the error message shown on the screen to the textfile error.txt
-    esearch_var = f"esearch -db protein -query '{protein_name}[PROTEIN]' 2>error.txt | efilter -query txid'{Taxon_ID}'[ORGANISM] 2>error.txt | efetch -format fasta 2>error.txt > ~/ICA2/protein_data_output/{protein_name_file}_{Taxon_ID}.fasta"
+    esearch_var = f"esearch -db protein -query '{protein_name}[PROTEIN]' 2>error.txt NOT PARTIAL | efilter -query txid'{Taxon_ID}'[ORGANISM] 2>error.txt NOT PARTIAL | efetch -format fasta 2>error.txt NOT PARTIAL > ~/ICA2/protein_data_output/{protein_name_file}_{Taxon_ID}.fasta"
     os.system(esearch_var) # os.system commamd is used to run the variable esearch_var
-    print("protein sequences successfully downloaded")
     return protein_name, Taxon_ID, output_file, protein_name_file
 
 protein_name, Taxon_ID, output_file, protein_name_file = get_protein_content()  #calling out the function get_protein_content and assigning the function to three variables protein_name, Taxon_ID and output_file.
@@ -45,7 +44,7 @@ os.listdir()
 my_fasta_file = open(output_file) #open a connection (output_file) and assign it to a variable called my_fasta_file which refers to the file that contains the protein information  
 protein_id = [] #Make an empty list and assign it to a variable called  protein_id
 protein_name = [] #Make an empty list and assign it to a variable called protein_name
-species = [] #Make an empty list and assign it to a variable called species
+organism = [] #Make an empty list and assign it to a variable called species
 protein_sequence = [] #Make an empty list and assign it to a variable called protein_sequence
 
 for eachline in my_fasta_file : 
@@ -54,35 +53,62 @@ for eachline in my_fasta_file :
         print(protein_id_search)
         protein_id.append(protein_id_search)
         protein_headerline =  re.search('(^>)''(.+)''(\[.+\])', eachline)
-        species_search = re.search('(\[.+\])', eachline).group(0)
-        print(species_search)
-        if species_search :
-            species.append(species_search)
-            id_removed = eachline.replace(protein_id_search, '')
-            protein_name_search = id_removed.replace(species_search, '')
-            print(protein_name_search)
-        if protein_name_search :
-            protein_name.append(protein_name_search)
+        organism_search = re.search('(\[.+\])', eachline).group(0)
+        print(organism_search)
+    if organism_search :
+        organism.append(organism_search)
+        id_removed = eachline.replace(protein_id_search, '')
+        protein_name_search = id_removed.replace(organism_search, '')
+        print(protein_name_search)
+    if protein_name_search :
+        protein_name.append(protein_name_search)
     else :
-        protein_sequence_search = protein_sequence.append(eachline)
-       # print(protein_sequence)
+        if protein_sequnece_search :
+            protein_sequence_search = protein_sequence.append(eachline)
+            print(protein_sequence_search)
 
 #Make a dataframe
-s1 = pd.Series(protein_id_search)
-s2 = pd.Series(protein_name_search)
-s3 = pd.Series(species_search)
-s4 = pd.Series(protein_sequence_search,dtype=pd.StringDtype())
-df = pd.DataFrame ( { 'protein_id' : s1, 'protein_name' : s2, 'species' : s3, 'protein_sequence' : s4 } )
+s1 = pd.Series(protein_id)
+s2 = pd.Series(protein_name)
+s3 = pd.Series(organism_search)
+s4 = pd.Series(protein_sequence,dtype=pd.StringDtype())
+df = pd.DataFrame ({'protein_id' : s1, 'protein_name' : s2, 'organism' : s3, 'protein_sequence' : s4 })
 print(df)
+csv_convert = path+ '/ICA2'
+df.to_csv(path+'/ICA2/'+protein_name_file+'_'+Taxon_ID+'.csv', sep='\t')
 
-#Running Clustalo 
+organism_count = df['organism'].value_counts()
+print(organism_count)
+
+
+
+#Running Clustalo
 path = os.environ['HOME'] #The homespace is stored into a variable called path
 
-my_fasta_file_original = path + f"/ICA2/protein_data_output/{protein_name_file}_{Taxon_ID}.fasta" #The path variable and the string is assigned to a variable my_fasta_file_original, which contains the fasta file {protein_name_file}_{Taxon_ID}.fasta
+my_fasta_file_original = path + "/ICA2/protein_data_output/"+protein_name_file+"_"+Taxon_ID+".fasta" #The path variable and the string is assigned to a variable my_fasta_file_original, which contains the fasta file {protein_name_file}_{Taxon_ID}.fasta
 my_output_file_clustalo = path + f"/ICA2/protein_data_output_aligned" #The path variable and the string containing the file protein_data_output_aligned is assigned to a variable called my_output_file_aligned, which contains the data generated by clustalo in msf form.
 #clustalo command is put into a string and run using an input file (my_fasta_file_original) and the output is put into a file called my_output_file_clustalo in msf form, the string is then assigned to the variable clustalo_cmd
 clustalo_cmd = f'clustalo -i {my_fasta_file_original} -o {my_output_file_clustalo} -v --outfmt msf --force'
-os.system(clustalo_cmd) #os.system command is used to run the variable clustalo_cmd
+
+def clustalo_user_input(question= 'Do you want to run Clustalo for sequence alignement?'): #Defining a function
+    while "The answer to run clustalo is invalid" : #A while loop is used to prompt the user for input if they give an invalid answer
+        clustalo_user_reply = str(input(question+ '[y/n]:')).lower().strip() #Ask the user for input (y/n) for running clustalo analysis
+#If loop is used, giving instructions to run clustalo_cmd variable (clustalo analysis) if the user input is y 
+        if clustalo_user_reply[:1] == 'y':
+            os.system(clustalo_cmd) #os.system command is used to run the variable clustalo_cmd
+            print("Clustalo analysis is done, please see the results") #A statement is shown on the screen to update the user that the clustalo analysis is done
+            return True #Exiting the function
+#If loop is used, giving instructions to exit clustalo idf the user input to the question is n
+        if clustalo_user_reply[:1] == 'n':
+            print ("Exiting Clustalo .....") #A statement updating the user that clustalo analysis is not done
+            return False #Exiting the function 
+
+clustalo_user_input(question= 'Do you want to run Clustalo for sequence alignement?') #Calling the function
+os.system('rm -fr ~/ICA2/infoalign_output/')
+os.makedirs(path + "/ICA2/infoalign_output/"+protein_name_file+"_"+Taxon_ID+".infoalign")
+my_output_file_infoalign = path + "/ICA2/infoalign_output/"+protein_name_file+"_"+Taxon_ID+".infoalign"
+infoalign_cmd = f'infoalign -sequence {my_output_file_clustalo} -outfile {my_output_file_infoalign}'
+os.system(infoalign_cmd)
 
 #Running Plotcon
 my_output_file_clustalo = path + f"/ICA2/protein_data_output_aligned" # The variable (path) and the string containing the file protein_data_output_aligned are assigned to the variable my_output_file_clustalo 
@@ -102,9 +128,21 @@ def plotcon_user_input(question= 'Do you want to view the plot now using plotcon
             return False #exiting the function
 plotcon_user_input(question= 'Do you want to view the plot now using plotcon') #run the function plotcon_user_input
 
-#Running prosite 
-path = os.environ['HOME']
-seqretsplit_output = path + f'/ICA2/prosite_output/seqretsplit_results/'
-seqretsplit_cmd = f"seqretsplit -sequence {my_fasta_file_original} -outseq {seqretsplit_output}"
-os.system(seqretsplit_cmd)
+#Running prosite
+#The single fasta file will be split into seperate fasta files with  individual protein sequences first by seqretsplit.
+#Running seqretsplit
+my_fasta_file_original = (os.environ['HOME'] + "/ICA2/protein_data_output/"+protein_name_file+"_"+Taxon_ID+".fasta") #The path variable and the string is assigned to a variable my_fasta_file_original, which contains the fasta file {protein_name_file}_{Taxon_ID}.
+seqretsplit_output = (os.environ['HOME'] + "/ICA2/prosite_output/seqretsplit_results") #variable seqretsplit_output is created to be used when running seqretsplit command line, as all the fasta files containing individual sequences will be assigned to this variable.
+os.system(f'rm -f -r {seqretsplit_output}') #remove the variable seqretsplit_output
+os.makedirs( seqretsplit_output ) #make a directory with the path assigned to variable seqretsplit_cmd 
+#Assign the  seqretsplit command to the variable seqretsplit_cmd, put the command line in a string and split the single fasta file in my_fasta_file_original variable into individual sequences (in seperate fasta files) that can be scanned by patmatmotifs. The fasta files generated will be put into seqretsplit_output 
+seqretsplit_cmd = f"seqretsplit -sequence {my_fasta_file_original} -osdirectory2 {seqretsplit_output} -" 
+os.system( seqretsplit_cmd) #Run the seqretsplit_cmd
+
+
+prosite_results = (os.environ['HOME'] + "/ICA2/prosite_output/patmotifs_output/"+protein_name_file+"_"+Taxon_ID+".patmatmotifs")
+os.system(f'rm -f -r {prosite_results}')
+os.makedirs( prosite_results )
+prosite_cmd = f'patmatmotifs -sequence {seqretsplit_output} -outfile {prosite_results}'
+os.system(prosite_cmd)
 
