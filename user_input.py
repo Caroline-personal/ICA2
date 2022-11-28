@@ -4,6 +4,7 @@ import sys
 import subprocess
 import re
 import pandas as pd
+from pathlib import Path
 
 os.chdir(os.environ['HOME']) #Change directory to homespace
 os.getcwd() #Make sure the current directory is your homespace
@@ -104,11 +105,24 @@ def clustalo_user_input(question= 'Do you want to run Clustalo for sequence alig
             return False #Exiting the function 
 
 clustalo_user_input(question= 'Do you want to run Clustalo for sequence alignement?') #Calling the function
+
+#Running infoalign
 os.system('rm -fr ~/ICA2/infoalign_output/')
-os.makedirs(path + "/ICA2/infoalign_output/"+protein_name_file+"_"+Taxon_ID+".infoalign")
-my_output_file_infoalign = path + "/ICA2/infoalign_output/"+protein_name_file+"_"+Taxon_ID+".infoalign"
-infoalign_cmd = f'infoalign -sequence {my_output_file_clustalo} -outfile {my_output_file_infoalign}'
-os.system(infoalign_cmd)
+os.mkdir(path + "/ICA2/infoalign_output/") # +protein_name_file+"_"+Taxon_ID+".infpalign")
+my_output_file_infoalign = path + "/ICA2/infoalign_output/"  #+protein_name_file+"_"+Taxon_ID+".infoalign"
+infoalign_cmd = f'infoalign -sequence {my_output_file_clustalo} -odirectory2 {my_output_file_infoalign} -'
+
+def infoalign_user_input(question= 'Do you want to run infoalign to learn more information about the asligned sequences?'):
+    while "The answer to run infoalign is invalid" :
+        infoalign_user_reply = str(input(question+ '[y/n]:')).lower().strip()
+        if infoalign_user_reply[:1] == 'y':
+            os.system(infoalign_cmd)
+            print("infoalign analysis is done, please view the results in the output file")
+            return True
+        if infoalign_user_reply[:1] == 'n':
+            print("Exiting infoalign....")
+            return False
+infoalign_user_input(question= 'Do you want to run infoalign to learn more information about the aligned sequences?')
 
 #Running Plotcon
 my_output_file_clustalo = path + f"/ICA2/protein_data_output_aligned" # The variable (path) and the string containing the file protein_data_output_aligned are assigned to the variable my_output_file_clustalo 
@@ -132,17 +146,19 @@ plotcon_user_input(question= 'Do you want to view the plot now using plotcon') #
 #The single fasta file will be split into seperate fasta files with  individual protein sequences first by seqretsplit.
 #Running seqretsplit
 my_fasta_file_original = (os.environ['HOME'] + "/ICA2/protein_data_output/"+protein_name_file+"_"+Taxon_ID+".fasta") #The path variable and the string is assigned to a variable my_fasta_file_original, which contains the fasta file {protein_name_file}_{Taxon_ID}.
-seqretsplit_output = (os.environ['HOME'] + "/ICA2/prosite_output/seqretsplit_results") #variable seqretsplit_output is created to be used when running seqretsplit command line, as all the fasta files containing individual sequences will be assigned to this variable.
+seqretsplit_output = (os.environ['HOME'] + "/ICA2/prosite_output/seqretsplit_results/") #variable seqretsplit_output is created to be used when running seqretsplit command line, as all the fasta files containing individual sequences will be assigned to this variable.
 os.system(f'rm -f -r {seqretsplit_output}') #remove the variable seqretsplit_output
 os.makedirs( seqretsplit_output ) #make a directory with the path assigned to variable seqretsplit_cmd 
 #Assign the  seqretsplit command to the variable seqretsplit_cmd, put the command line in a string and split the single fasta file in my_fasta_file_original variable into individual sequences (in seperate fasta files) that can be scanned by patmatmotifs. The fasta files generated will be put into seqretsplit_output 
 seqretsplit_cmd = f"seqretsplit -sequence {my_fasta_file_original} -osdirectory2 {seqretsplit_output} -" 
 os.system( seqretsplit_cmd) #Run the seqretsplit_cmd
 
-
-prosite_results = (os.environ['HOME'] + "/ICA2/prosite_output/patmotifs_output/"+protein_name_file+"_"+Taxon_ID+".patmatmotifs")
-os.system(f'rm -f -r {prosite_results}')
-os.makedirs( prosite_results )
-prosite_cmd = f'patmatmotifs -sequence {seqretsplit_output} -outfile {prosite_results}'
-os.system(prosite_cmd)
+#Scanning protein sequences using patmatmotifs
+prosite_results = (os.environ['HOME'] + "/ICA2/prosite_output/patmotifs_output/") #Assign the directory that ends with .patmatmotifs into a variable called prosite_results
+os.system(f'rm -f -r {prosite_results}') #remove the variable prosite_results
+os.makedirs( prosite_results ) #make a directory using the variable prosite_results
+prosite_files = Path(seqretsplit_output).glob('*')
+for file in prosite_files:
+    prosite_cmd = f"patmatmotifs -sequence {file} -rdirectory2 {prosite_results} -"
+    os.system(prosite_cmd)
 
